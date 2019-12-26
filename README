@@ -16,19 +16,15 @@ the stock generated kickstart code from Mono to easily run C# applications on
 About the precompiled/ Folder
 -----------------------------
 We have provided a precompiled MonoKickstart application for you to use in your
-programs. Included are kick binaries and libmono binaries for macOS and Linux
-(64-bit only). We have also provided the subset of the C# BCL needed by FNA as
-well as a "./Kick" script to automatically choose the right binary for the
-operating system and architecture.
+programs. Included are kick binaries and libmono binaries for macOS and Linux.
+We have also provided the subset of the C# BCL needed by FNA; if you need any
+other DLLs, you can find them in a standard binary release of Mono.
 
 To use the precompiled MonoKickstart, simply rename the kick.bin.* binaries to
 the name of your .exe assembly (for instance, MyGame.bin.x86 starts MyGame.exe).
-Additionally, modify "Kick" to run those newly named kick binaries rather than
-the generic "kick" name. The name of "Kick" itself can be whatever you like.
 
 If you wish to use additional shared libraries (for instance, libSDL2), simply
 add the library to the architecture's lib folder:
 
 macOS: osx/
-Linux (64-bit): lib64/
-Linux (32-bit): lib/
+Linux: lib64/
