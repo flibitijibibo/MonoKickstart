@@ -14,17 +14,26 @@ if (APPLE)
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.osx")
     SET(CMAKE_EXE_LINKER_FLAGS "-framework Foundation")
     SET(BIN_RPATH "@executable_path/osx")
-    SET(KICKLIBS iconv)
+    SET(KICKLIBS
+        iconv
+        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native-compat.a
+    )
 elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(BIN_LIBROOT "lib64")
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86_64")
     SET(BIN_RPATH "\$ORIGIN/lib64")
-    SET(KICKLIBS m rt dl)
+    SET(KICKLIBS
+        m rt dl
+        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native.a
+    )
 else()
     SET(BIN_LIBROOT "lib")
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86")
     SET(BIN_RPATH "\$ORIGIN/lib")
-    SET(KICKLIBS m rt dl)
+    SET(KICKLIBS
+        m rt dl
+        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native.a
+    )
 endif()
 
 ADD_DEFINITIONS(-DENABLE_BINRELOC)
