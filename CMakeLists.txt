@@ -16,7 +16,7 @@ if (APPLE)
     SET(BIN_RPATH "@executable_path/osx")
     SET(KICKLIBS
         iconv
-        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native-compat.a
+        ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native-compat.a
     )
 elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(BIN_LIBROOT "lib64")
@@ -24,7 +24,7 @@ elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(BIN_RPATH "\$ORIGIN/lib64")
     SET(KICKLIBS
         m rt dl
-        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native.a
+        ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a
     )
 else()
     SET(BIN_LIBROOT "lib")
@@ -32,7 +32,7 @@ else()
     SET(BIN_RPATH "\$ORIGIN/lib")
     SET(KICKLIBS
         m rt dl
-        ${CMAKE_SOURCE_DIR}/../mono/native/.libs/libmono-native.a
+        ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a
     )
 endif()
 
