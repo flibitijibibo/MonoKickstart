@@ -28,3 +28,14 @@ add the library to the architecture's lib folder:
 
 macOS: osx/
 Linux: lib64/
+
+About MONO_FORCE_COMPAT
+-----------------------
+Recent versions of .NET broke compatibility with previous versions, in ways that
+are non-trivial for applications to fix. To work around the issue, we have
+integrated a patch from the OpenBSD community to allow for replicating old .NET
+behavior by simply setting MONO_FORCE_COMPAT to a non-null value:
+
+https://github.com/openbsd/ports/commit/7670058636c4985f47fa8da6dceaa9e7fec4f933
+
+Thanks to the OpenBSD community for the fix!
