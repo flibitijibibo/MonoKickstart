@@ -59,6 +59,11 @@ int main (int argc, char* argv[])
 	char **newargs;
 	int i, k = 0;
 
+#ifdef __APPLE__
+	/* Sandboxed apps are disallowed from using shared memory */
+	setenv("MONO_DISABLE_SHARED_AREA", "1", 1);
+#endif
+
 #ifdef _WIN32
 	/* CommandLineToArgvW() might return a different argc than the
 	 * one passed to main(), so let it overwrite that, as we won't
