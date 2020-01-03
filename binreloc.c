@@ -14,6 +14,7 @@
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/param.h>
 #include <mach-o/dyld.h>
+#include <CoreFoundation/CFBundle.h>
 #endif
 #include "binreloc.h"
 
@@ -562,6 +563,23 @@ br_find_sbin_dir (const char *default_sbin_dir)
 char *
 br_find_data_dir (const char *default_data_dir)
 {
+#if __APPLE__
+	char folder[PATH_MAX];
+	CFBundleRef bundle = CFBundleGetMainBundle();
+	CFURLRef url = CFBundleCopyResourcesDirectoryURL(bundle);
+	Boolean success = CFURLGetFileSystemRepresentation(
+		url,
+		true,
+		(UInt8*) folder,
+		sizeof(folder)
+	);
+	CFRelease(url);
+	if (!success)
+	{
+		return NULL;
+	}
+	return strdup(folder);
+#else
 	char *prefix, *dir;
 
 	prefix = br_find_prefix ((const char *) NULL);
@@ -576,6 +594,7 @@ br_find_data_dir (const char *default_data_dir)
 	dir = br_build_path (prefix, "share");
 	free (prefix);
 	return dir;
+#endif
 }
 
 

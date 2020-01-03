@@ -83,7 +83,11 @@ int main (int argc, char* argv[])
 
 	BrInitError err = 0;
 	if (br_init(&err) == 1) {
+#ifdef __APPLE__
+		char *exedir = br_find_data_dir(NULL);
+#else
 		char *exedir = br_find_exe_dir(NULL);
+#endif
 		if (exedir) {
 			setenv("MONO_PATH",exedir,1);
 			mono_set_dirs(exedir, exedir);
@@ -109,13 +113,39 @@ int main (int argc, char* argv[])
 	
 	// Calculate image_name
 	char *image_name;
+	char *image_suffix;
 	char *exe = br_find_exe(NULL);
 	char *pos = strrchr(exe, '/');
 	if (pos != NULL) {
-		image_name = strdup(pos+1);
-		pos = strstr(image_name,".bin.");
-		if (pos != NULL) {
-			strcpy(pos, ".exe");
+		image_name = pos + 1;
+		image_suffix = strstr(image_name, ".bin.");
+		if (image_suffix != NULL)
+		{
+			image_name = strdup(pos + 1);
+			strcpy(strstr(image_name, ".bin."), ".exe");
+		}
+		else
+		{
+			image_suffix = strstr(image_name, ".");
+			if (image_suffix == NULL)
+			{
+				/* This is most likely a *nix executable, so
+				 * just append ".exe" to the end of it
+				 */
+				const char *exe_suffix = ".exe";
+				image_name = (char*) malloc(
+					strlen(image_name) +
+					strlen(exe_suffix) +
+					1
+				);
+				strcpy(image_name, pos + 1);
+				strcat(image_name, exe_suffix);
+			}
+			else
+			{
+				printf("Failed to get exe name!\n");
+				return 1;
+			}
 		}
 	}
 	free(exe);
