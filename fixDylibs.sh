@@ -3,6 +3,16 @@
 FILES=`ls osx`
 for f in $FILES
 do
+    # Rip out i386, you should never hit 32-bit anymore
+    if lipo -archs osx/$f | grep i386; then
+        cp osx/$f osx/$f.temp
+        lipo osx/$f.temp -remove i386 -output osx/$f
+        rm osx/$f.temp
+        echo $f 32-bit code stripped
+    else
+        echo $f has no 32-bit code
+    fi
+
     # OS X's Dynamic Linker looks for an "install path" inside of
     # a given dynamic library. It will then try to find the library
     # at that location. This usually defaults to somewhere in the
