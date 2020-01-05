@@ -29,6 +29,8 @@ add the library to the architecture's lib folder:
 macOS: osx/
 Linux: lib64/
 
+Be sure to run `./fixDylibs.sh` on macOS if you add new libraries!
+
 About MONO_FORCE_COMPAT
 -----------------------
 Recent versions of .NET broke compatibility with previous versions, in ways that
