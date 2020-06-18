@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-PROJECT(kick)
+PROJECT(kick C)
 
 OPTION(FORCE32 "Force a 32bit compile on 64bit" OFF)
 if (APPLE)
@@ -23,7 +23,7 @@ elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86_64")
     SET(BIN_RPATH "\$ORIGIN/lib64")
     SET(KICKLIBS
-        m rt dl
+        m rt dl libz.a
         "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
 else()
@@ -31,7 +31,7 @@ else()
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86")
     SET(BIN_RPATH "\$ORIGIN/lib")
     SET(KICKLIBS
-        m rt dl
+        m rt dl libz.a
         "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
 endif()

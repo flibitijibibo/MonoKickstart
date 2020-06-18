@@ -1,0 +1,30 @@
+From eb882a0270d39ed7b450dc268e782eca60aec825 Mon Sep 17 00:00:00 2001
+From: Ethan Lee <flibitijibibo@gmail.com>
+Date: Thu, 18 Jun 2020 14:04:42 -0400
+Subject: [PATCH] MONO_FORCE_COMPAT patch from OpenBSD
+
+---
+ src/Common/src/CoreLib/System/Collections/Generic/List.cs | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/Common/src/CoreLib/System/Collections/Generic/List.cs b/src/Common/src/CoreLib/System/Collections/Generic/List.cs
+index ca00ca282e..66a2509960 100644
+--- a/src/Common/src/CoreLib/System/Collections/Generic/List.cs
++++ b/src/Common/src/CoreLib/System/Collections/Generic/List.cs
+@@ -578,8 +578,11 @@ namespace System.Collections.Generic
+                 action(_items[i]);
+             }
+ 
+-            if (version != _version)
+-                ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
++            if (Environment.GetEnvironmentVariable ("MONO_FORCE_COMPAT") == null)
++            {
++                if (version != _version)
++                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
++            }
+         }
+ 
+         // Returns an enumerator for this list with the given
+-- 
+2.26.2
+

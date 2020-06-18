@@ -1,0 +1,26 @@
+From 70857d74046ac83886927e7c9c1fa692f09c79de Mon Sep 17 00:00:00 2001
+From: Ethan Lee <flibitijibibo@gmail.com>
+Date: Thu, 18 Jun 2020 14:02:33 -0400
+Subject: [PATCH] MONO_FORCE_COMPAT patch from OpenBSD
+
+---
+ .../shared/System/Collections/Generic/ArraySortHelper.cs       | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/System.Private.CoreLib/shared/System/Collections/Generic/ArraySortHelper.cs b/src/System.Private.CoreLib/shared/System/Collections/Generic/ArraySortHelper.cs
+index 03b986504..f84786cd4 100644
+--- a/src/System.Private.CoreLib/shared/System/Collections/Generic/ArraySortHelper.cs
++++ b/src/System.Private.CoreLib/shared/System/Collections/Generic/ArraySortHelper.cs
+@@ -40,7 +40,8 @@ namespace System.Collections.Generic
+ 
+         internal static void ThrowOrIgnoreBadComparer(object comparer)
+         {
+-            throw new ArgumentException(SR.Format(SR.Arg_BogusIComparer, comparer));
++            if (Environment.GetEnvironmentVariable ("MONO_FORCE_COMPAT") == null)
++                throw new ArgumentException(SR.Format(SR.Arg_BogusIComparer, comparer));
+         }
+     }
+ 
+-- 
+2.26.2
+

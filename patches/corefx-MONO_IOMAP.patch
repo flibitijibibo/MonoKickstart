@@ -1,0 +1,799 @@
+From 2902d5856985830db1e23f78ed8b83d4c502a261 Mon Sep 17 00:00:00 2001
+From: Ethan Lee <flibitijibibo@gmail.com>
+Date: Wed, 22 Apr 2020 13:10:16 -0400
+Subject: [PATCH] DRAFT: Port MONO_IOMAP to CoreFX.
+
+The original mono-io-portability code mapped almost 1:1 with the CoreFX I/O
+implementation with the exception of g_dir_open, which for non-Win32 is just
+opendir with more memory allocations. The tabs/style are fixed in the function
+implementations, while the original portability code is preserved in its
+entirety, hideous whitespace and all.
+
+The functions that use a 'const char* path' but were NOT present in
+mono-io-portability include the following:
+- FnMatch
+- ReadLink
+- INotifyAddWatch
+- RealPath
+- LChflags
+
+Peculiarly, Mono still seems to use the old MonoIO _just_ enough to where we
+can't name this something more appropriate like DOTNET_IOMAP, so instead we
+have to share the old name to get full coverage for this feature.
+---
+ src/Native/Unix/System.Native/pal_io.c   | 585 ++++++++++++++++++++++-
+ src/Native/Unix/System.Native/pal_time.c |  72 +++
+ 2 files changed, 652 insertions(+), 5 deletions(-)
+
+diff --git a/src/Native/Unix/System.Native/pal_io.c b/src/Native/Unix/System.Native/pal_io.c
+index ddd56b91c93d..447e03fcfde5 100644
+--- a/src/Native/Unix/System.Native/pal_io.c
++++ b/src/Native/Unix/System.Native/pal_io.c
+@@ -139,6 +139,50 @@ c_static_assert(PAL_IN_EXCL_UNLINK == IN_EXCL_UNLINK);
+ c_static_assert(PAL_IN_ISDIR == IN_ISDIR);
+ #endif // HAVE_INOTIFY
+ 
++/* BEGIN MONO_IO_PORTABILITY_H */
++
++#include <glib.h>
++#include <mono/utils/mono-compiler.h>
++#include "config.h"
++
++enum {
++        PORTABILITY_NONE        = 0x00,
++        PORTABILITY_UNKNOWN     = 0x01,
++        PORTABILITY_DRIVE       = 0x02,
++        PORTABILITY_CASE        = 0x04
++};
++
++#ifdef DISABLE_PORTABILITY
++
++#define mono_portability_helpers_init()
++#define mono_portability_find_file(pathname,last_exists) NULL
++
++#define IS_PORTABILITY_NONE FALSE
++#define IS_PORTABILITY_UNKNOWN FALSE
++#define IS_PORTABILITY_DRIVE FALSE
++#define IS_PORTABILITY_CASE FALSE
++#define IS_PORTABILITY_SET FALSE
++
++#else
++
++void mono_portability_helpers_init_COREFX (void);
++gchar *mono_portability_find_file_COREFX (const gchar *pathname, gboolean last_exists);
++#define mono_portability_helpers_init() mono_portability_helpers_init_COREFX()
++#define mono_portability_find_file(pathname,last_exists) mono_portability_find_file_COREFX(pathname,last_exists)
++
++extern int mono_io_portability_helpers_COREFX;
++#define mono_io_portability_helpers mono_io_portability_helpers_COREFX
++
++#define IS_PORTABILITY_NONE (mono_io_portability_helpers & PORTABILITY_NONE)
++#define IS_PORTABILITY_UNKNOWN (mono_io_portability_helpers & PORTABILITY_UNKNOWN)
++#define IS_PORTABILITY_DRIVE (mono_io_portability_helpers & PORTABILITY_DRIVE)
++#define IS_PORTABILITY_CASE (mono_io_portability_helpers & PORTABILITY_CASE)
++#define IS_PORTABILITY_SET (mono_io_portability_helpers > 0)
++
++#endif
++
++/* END MONO_IO_PORTABILITY_H */
++
+ static void ConvertFileStatus(const struct stat_* src, struct FileStatus* dst)
+ {
+     dst->Dev = (int64_t)src->st_dev;
+@@ -181,6 +225,20 @@ int32_t SystemNative_Stat2(const char* path, struct FileStatus* output)
+     struct stat_ result;
+     int ret;
+     while ((ret = stat_(path, &result)) < 0 && errno == EINTR);
++    if (ret == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while ((ret = stat_(located_filename, &result)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
+ 
+     if (ret == 0)
+     {
+@@ -208,6 +266,20 @@ int32_t SystemNative_LStat2(const char* path, struct FileStatus* output)
+ {
+     struct stat_ result;
+     int ret = lstat_(path, &result);
++    if (ret == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        ret = lstat_(located_filename, &result);
++        g_free(located_filename);
++    }
+ 
+     if (ret == 0)
+     {
+@@ -274,7 +346,39 @@ intptr_t SystemNative_Open(const char* path, int32_t flags, int32_t mode)
+     }
+ 
+     int result;
+-    while ((result = open(path, flags, (mode_t)mode)) < 0 && errno == EINTR);
++    char* located_filename;
++    if (flags & O_CREAT)
++    {
++        located_filename = mono_portability_find_file(path, FALSE);
++        if (located_filename == NULL)
++        {
++            while ((result = open(path, flags, (mode_t)mode)) < 0 && errno == EINTR);
++        }
++        else
++        {
++            while ((result = open(located_filename, flags, (mode_t)mode)) < 0 && errno == EINTR);
++            g_free(located_filename);
++        }
++    }
++    else
++    {
++        while ((result = open(path, flags, (mode_t)mode)) < 0 && errno == EINTR);
++        if (result == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET)
++        {
++            int32_t saved_errno = errno;
++            located_filename = mono_portability_find_file(path, TRUE);
++
++            if (located_filename == NULL)
++            {
++                errno = saved_errno;
++                return -1;
++            }
++
++            while ((result = open(located_filename, flags, (mode_t)mode)) < 0 && errno == EINTR);
++            g_free (located_filename);
++        }
++    }
++
+ #if !HAVE_O_CLOEXEC
+     if (old_flags & PAL_O_CLOEXEC)
+     {
+@@ -306,6 +410,20 @@ int32_t SystemNative_Unlink(const char* path)
+ {
+     int32_t result;
+     while ((result = unlink(path)) < 0 && errno == EINTR);
++    if (result == -1 && (errno == ENOENT || errno == ENOTDIR || errno == EISDIR) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while ((result = unlink(located_filename)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
+@@ -467,7 +585,22 @@ int32_t SystemNative_ReadDirR(DIR* dir, uint8_t* buffer, int32_t bufferSize, str
+ 
+ DIR* SystemNative_OpenDir(const char* path)
+ {
+-    return opendir(path);
++    DIR* ret = opendir(path);
++    if (ret == NULL && (errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return NULL;
++        }
++
++        ret = opendir(located_filename);
++        g_free(located_filename);
++    }
++    return ret;
+ }
+ 
+ int32_t SystemNative_CloseDir(DIR* dir)
+@@ -592,7 +725,18 @@ int32_t SystemNative_FcntlSetIsNonBlocking(intptr_t fd, int32_t isNonBlocking)
+ int32_t SystemNative_MkDir(const char* path, int32_t mode)
+ {
+     int32_t result;
+-    while ((result = mkdir(path, (mode_t)mode)) < 0 && errno == EINTR);
++    char* located_filename = mono_portability_find_file(path, FALSE);
++
++    if (located_filename == NULL)
++    {
++        while ((result = mkdir(path, (mode_t)mode)) < 0 && errno == EINTR);
++    }
++    else
++    {
++        while ((result = mkdir(located_filename, (mode_t)mode)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
++
+     return result;
+ }
+ 
+@@ -600,6 +744,20 @@ int32_t SystemNative_ChMod(const char* path, int32_t mode)
+ {
+     int32_t result;
+     while ((result = chmod(path, (mode_t)mode)) < 0 && errno == EINTR);
++    if (result == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while ((result = chmod(located_filename, (mode_t)mode)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
+@@ -628,12 +786,41 @@ int32_t SystemNative_ChDir(const char* path)
+ {
+     int32_t result;
+     while ((result = chdir(path)) < 0 && errno == EINTR);
++    if (result == -1 && (errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char *located_filename = mono_portability_find_file (path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while ((result = chdir(located_filename)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
+ int32_t SystemNative_Access(const char* path, int32_t mode)
+ {
+-    return access(path, mode);
++    int32_t result = access(path, mode);
++    if (result == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        result = access(located_filename, mode);
++        g_free(located_filename);
++    }
++    return result;
+ }
+ 
+ int32_t SystemNative_FnMatch(const char* pattern, const char* path, int32_t flags)
+@@ -1159,7 +1346,36 @@ int32_t SystemNative_ReadLink(const char* path, char* buffer, int32_t bufferSize
+ int32_t SystemNative_Rename(const char* oldPath, const char* newPath)
+ {
+     int32_t result;
+-    while ((result = rename(oldPath, newPath)) < 0 && errno == EINTR);
++    char* located_newpath = mono_portability_find_file(newPath, FALSE);
++
++    if (located_newpath == NULL)
++    {
++        while ((result = rename(oldPath, newPath)) < 0 && errno == EINTR);
++    }
++    else
++    {
++        while ((result = rename(oldPath, located_newpath)) < 0 && errno == EINTR);
++
++        if (result == -1 && (errno == EISDIR || errno == ENAMETOOLONG || errno == ENOENT || errno == ENOTDIR || errno == EXDEV) && IS_PORTABILITY_SET)
++        {
++            int32_t saved_errno = errno;
++            char* located_oldpath = mono_portability_find_file(oldPath, TRUE);
++
++            if (located_oldpath == NULL)
++            {
++                g_free(located_oldpath);
++                g_free(located_newpath);
++
++                errno = saved_errno;
++                return -1;
++            }
++
++            while ((result = rename(located_oldpath, located_newpath)) < 0 && errno == EINTR);
++            g_free(located_oldpath);
++        }
++        g_free(located_newpath);
++    }
++
+     return result;
+ }
+ 
+@@ -1167,6 +1383,20 @@ int32_t SystemNative_RmDir(const char* path)
+ {
+     int32_t result;
+     while ((result = rmdir(path)) < 0 && errno == EINTR);
++    if (result == -1 && (errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG) && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while ((result = rmdir(located_filename)) < 0 && errno == EINTR);
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
+@@ -1492,3 +1722,348 @@ int32_t SystemNative_Symlink(const char* target, const char* linkPath)
+ {
+     return symlink(target, linkPath);
+ }
++
++/* BEGIN MONO_IO_PORTABILITY_C */
++
++#ifndef DISABLE_PORTABILITY
++
++#include <errno.h>
++#include <mono/metadata/profiler-private.h>
++#include <mono/utils/mono-compiler.h>
++#include <dirent.h>
++
++int mono_io_portability_helpers_COREFX = PORTABILITY_UNKNOWN;
++
++static gchar *mono_portability_find_file_internal (const gchar *pathname, gboolean last_exists);
++
++void mono_portability_helpers_init_COREFX (void)
++{
++        gchar *env;
++
++	if (mono_io_portability_helpers != PORTABILITY_UNKNOWN)
++		return;
++	
++        mono_io_portability_helpers = PORTABILITY_NONE;
++	
++        env = g_getenv ("MONO_IOMAP");
++        if (env != NULL) {
++                /* parse the environment setting and set up some vars
++                 * here
++                 */
++                gchar **options = g_strsplit (env, ":", 0);
++                int i;
++                
++                if (options == NULL) {
++                        /* This shouldn't happen */
++                        return;
++                }
++                
++                for (i = 0; options[i] != NULL; i++) {
++#ifdef DEBUG
++                        g_message ("%s: Setting option [%s]", __func__,
++                                   options[i]);
++#endif
++                        if (!strncasecmp (options[i], "drive", 5)) {
++                                mono_io_portability_helpers |= PORTABILITY_DRIVE;
++                        } else if (!strncasecmp (options[i], "case", 4)) {
++                                mono_io_portability_helpers |= PORTABILITY_CASE;
++                        } else if (!strncasecmp (options[i], "all", 3)) {
++                                mono_io_portability_helpers |= (PORTABILITY_DRIVE | PORTABILITY_CASE);
++			}
++                }
++		g_free (env);
++	}
++}
++
++/* Returns newly allocated string, or NULL on failure */
++static gchar *find_in_dir (DIR *current, const gchar *name)
++{
++	struct dirent *entry;
++
++#ifdef DEBUG
++	g_message ("%s: looking for [%s]\n", __func__, name);
++#endif
++	
++	while((entry = readdir (current)) != NULL) {
++#ifdef DEBUGX
++		g_message ("%s: found [%s]\n", __func__, entry->d_name);
++#endif
++		
++		if (!g_ascii_strcasecmp (name, entry->d_name)) {
++			char *ret;
++			
++#ifdef DEBUG
++			g_message ("%s: matched [%s] to [%s]\n", __func__,
++				   entry->d_name, name);
++#endif
++
++			ret = g_strdup (entry->d_name);
++			closedir (current);
++			return ret;
++		}
++	}
++	
++#ifdef DEBUG
++	g_message ("%s: returning NULL\n", __func__);
++#endif
++	
++	closedir (current);
++	
++	return(NULL);
++}
++
++gchar *mono_portability_find_file_COREFX (const gchar *pathname, gboolean last_exists)
++{
++	gchar *ret;
++	
++	if (!pathname || !pathname [0])
++		return NULL;
++	ret = mono_portability_find_file_internal (pathname, last_exists);
++
++	return ret;
++}
++
++/* Returns newly-allocated string or NULL on failure */
++static gchar *mono_portability_find_file_internal (const gchar *pathname, gboolean last_exists)
++{
++	gchar *new_pathname, **components, **new_components;
++	int num_components = 0, component = 0;
++	DIR *scanning = NULL;
++	size_t len;
++
++	mono_portability_helpers_init(); /* flibitChange! */
++
++	if (IS_PORTABILITY_NONE) {
++		return(NULL);
++	}
++
++	new_pathname = g_strdup (pathname);
++	
++#ifdef DEBUG
++	g_message ("%s: Finding [%s] last_exists: %s\n", __func__, pathname,
++		   last_exists?"TRUE":"FALSE");
++#endif
++	
++	if (last_exists &&
++	    access (new_pathname, F_OK) == 0) {
++#ifdef DEBUG
++		g_message ("%s: Found it without doing anything\n", __func__);
++#endif
++		return(new_pathname);
++	}
++	
++	/* First turn '\' into '/' and strip any drive letters */
++	g_strdelimit (new_pathname, '\\', '/');
++
++#ifdef DEBUG
++	g_message ("%s: Fixed slashes, now have [%s]\n", __func__,
++		   new_pathname);
++#endif
++	
++	if (IS_PORTABILITY_DRIVE &&
++	    g_ascii_isalpha (new_pathname[0]) &&
++	    (new_pathname[1] == ':')) {
++		int len = strlen (new_pathname);
++		
++		g_memmove (new_pathname, new_pathname+2, len - 2);
++		new_pathname[len - 2] = '\0';
++#ifdef DEBUG
++		g_message ("%s: Stripped drive letter, now looking for [%s]\n",
++			   __func__, new_pathname);
++#endif
++	}
++
++	len = strlen (new_pathname);
++	if (len > 1 && new_pathname [len - 1] == '/') {
++		new_pathname [len - 1] = 0;
++#ifdef DEBUG
++		g_message ("%s: requested name had a trailing /, rewritten to '%s'\n",
++			   __func__, new_pathname);
++#endif
++	}
++
++	if (last_exists &&
++	    access (new_pathname, F_OK) == 0) {
++#ifdef DEBUG
++		g_message ("%s: Found it\n", __func__);
++#endif
++
++		return(new_pathname);
++	}
++
++	/* OK, have to work harder.  Take each path component in turn
++	 * and do a case-insensitive directory scan for it
++	 */
++
++	if (!(IS_PORTABILITY_CASE)) {
++		g_free (new_pathname);
++		return(NULL);
++	}
++
++	components = g_strsplit (new_pathname, "/", 0);
++	if (components == NULL) {
++		/* This shouldn't happen */
++		g_free (new_pathname);
++		return(NULL);
++	}
++	
++	while(components[num_components] != NULL) {
++		num_components++;
++	}
++	g_free (new_pathname);
++	
++	if (num_components == 0){
++		return NULL;
++	}
++	
++
++	new_components = (gchar **)g_new0 (gchar **, num_components + 1);
++
++	if (num_components > 1) {
++		if (strcmp (components[0], "") == 0) {
++			/* first component blank, so start at / */
++			scanning = opendir ("/");
++			if (scanning == NULL) {
++#ifdef DEBUG
++				g_message ("%s: opendir 1 error: %s", __func__,
++					   g_strerror (errno));
++#endif
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		
++			new_components[component++] = g_strdup ("");
++		} else {
++			DIR *current;
++			gchar *entry;
++		
++			current = opendir (".");
++			if (current == NULL) {
++#ifdef DEBUG
++				g_message ("%s: opendir 2 error: %s", __func__,
++					   g_strerror (errno));
++#endif
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		
++			entry = find_in_dir (current, components[0]);
++			if (entry == NULL) {
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		
++			scanning = opendir (entry);
++			if (scanning == NULL) {
++#ifdef DEBUG
++				g_message ("%s: opendir 3 error: %s", __func__,
++					   g_strerror (errno));
++#endif
++				g_free (entry);
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		
++			new_components[component++] = entry;
++		}
++	} else {
++		if (last_exists) {
++			if (strcmp (components[0], "") == 0) {
++				/* First and only component blank */
++				new_components[component++] = g_strdup ("");
++			} else {
++				DIR *current;
++				gchar *entry;
++				
++				current = opendir (".");
++				if (current == NULL) {
++#ifdef DEBUG
++					g_message ("%s: opendir 4 error: %s",
++						   __func__,
++						   g_strerror (errno));
++#endif
++					g_strfreev (new_components);
++					g_strfreev (components);
++					return(NULL);
++				}
++				
++				entry = find_in_dir (current, components[0]);
++				if (entry == NULL) {
++					g_strfreev (new_components);
++					g_strfreev (components);
++					return(NULL);
++				}
++				
++				new_components[component++] = entry;
++			}
++		} else {
++				new_components[component++] = g_strdup (components[0]);
++		}
++	}
++
++#ifdef DEBUG
++	g_message ("%s: Got first entry: [%s]\n", __func__, new_components[0]);
++#endif
++
++	g_assert (component == 1);
++	
++	for(; component < num_components; component++) {
++		gchar *entry;
++		gchar *path_so_far;
++		
++		if (!last_exists &&
++		    component == num_components -1) {
++			entry = g_strdup (components[component]);
++			closedir (scanning);
++		} else {
++			entry = find_in_dir (scanning, components[component]);
++			if (entry == NULL) {
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		}
++		
++		new_components[component] = entry;
++		
++		if (component < num_components -1) {
++			path_so_far = g_strjoinv ("/", new_components);
++
++			scanning = opendir (path_so_far);
++			g_free (path_so_far);
++			if (scanning == NULL) {
++				g_strfreev (new_components);
++				g_strfreev (components);
++				return(NULL);
++			}
++		}
++	}
++	
++	g_strfreev (components);
++
++	new_pathname = g_strjoinv ("/", new_components);
++
++#ifdef DEBUG
++	g_message ("%s: pathname [%s] became [%s]\n", __func__, pathname,
++		   new_pathname);
++#endif
++	
++	g_strfreev (new_components);
++
++	if ((last_exists &&
++	     access (new_pathname, F_OK) == 0) ||
++	    (!last_exists)) {
++		return(new_pathname);
++	}
++
++	g_free (new_pathname);
++	return(NULL);
++}
++
++#endif /* !DISABLE_PORTABILITY */
++
++/* END MONO_IO_PORTABILITY_C */
+diff --git a/src/Native/Unix/System.Native/pal_time.c b/src/Native/Unix/System.Native/pal_time.c
+index 095c44362f24..a6fb3c24bbc9 100644
+--- a/src/Native/Unix/System.Native/pal_time.c
++++ b/src/Native/Unix/System.Native/pal_time.c
+@@ -14,6 +14,50 @@
+ #include <mach/mach_time.h>
+ #endif
+ 
++/* BEGIN MONO_IO_PORTABILITY_H */
++
++#include <glib.h>
++#include <mono/utils/mono-compiler.h>
++#include "config.h"
++
++enum {
++        PORTABILITY_NONE        = 0x00,
++        PORTABILITY_UNKNOWN     = 0x01,
++        PORTABILITY_DRIVE       = 0x02,
++        PORTABILITY_CASE        = 0x04
++};
++
++#ifdef DISABLE_PORTABILITY
++
++#define mono_portability_helpers_init()
++#define mono_portability_find_file(pathname,last_exists) NULL
++
++#define IS_PORTABILITY_NONE FALSE
++#define IS_PORTABILITY_UNKNOWN FALSE
++#define IS_PORTABILITY_DRIVE FALSE
++#define IS_PORTABILITY_CASE FALSE
++#define IS_PORTABILITY_SET FALSE
++
++#else
++
++void mono_portability_helpers_init_COREFX (void);
++gchar *mono_portability_find_file_COREFX (const gchar *pathname, gboolean last_exists);
++#define mono_portability_helpers_init() mono_portability_helpers_init_COREFX()
++#define mono_portability_find_file(pathname,last_exists) mono_portability_find_file_COREFX(pathname,last_exists)
++
++extern int mono_io_portability_helpers_COREFX;
++#define mono_io_portability_helpers mono_io_portability_helpers_COREFX
++
++#define IS_PORTABILITY_NONE (mono_io_portability_helpers & PORTABILITY_NONE)
++#define IS_PORTABILITY_UNKNOWN (mono_io_portability_helpers & PORTABILITY_UNKNOWN)
++#define IS_PORTABILITY_DRIVE (mono_io_portability_helpers & PORTABILITY_DRIVE)
++#define IS_PORTABILITY_CASE (mono_io_portability_helpers & PORTABILITY_CASE)
++#define IS_PORTABILITY_SET (mono_io_portability_helpers > 0)
++
++#endif
++
++/* END MONO_IO_PORTABILITY_H */
++
+ enum
+ {
+     SecondsToMicroSeconds = 1000000,  // 10^6
+@@ -43,6 +87,20 @@ int32_t SystemNative_UTime(const char* path, UTimBuf* times)
+ 
+     int32_t result;
+     while (CheckInterrupted(result = utime(path, &temp)));
++    if (result == -1 && errno == ENOENT && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while (CheckInterrupted(result = utime(located_filename, &temp)));
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
+@@ -55,6 +113,20 @@ int32_t SystemNative_UTimes(const char* path, TimeValPair* times)
+ 
+     int32_t result;
+     while (CheckInterrupted(result = utimes(path, temp)));
++    if (result == -1 && errno == ENOENT && IS_PORTABILITY_SET)
++    {
++        int32_t saved_errno = errno;
++        char* located_filename = mono_portability_find_file(path, TRUE);
++
++        if (located_filename == NULL)
++        {
++            errno = saved_errno;
++            return -1;
++        }
++
++        while (CheckInterrupted(result = utimes(located_filename, temp)));
++        g_free(located_filename);
++    }
+     return result;
+ }
+ 
