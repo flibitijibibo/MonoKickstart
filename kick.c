@@ -188,10 +188,11 @@ int main (int argc, char* argv[])
 	}
 	fseek(fileIn, 0, SEEK_END);
 	long len = ftell(fileIn);
-	char *machineconfig = (char*) malloc(len); /* DO NOT FREE! -flibit */
+	char *machineconfig = (char*) malloc(len + 1); /* DO NOT FREE! -flibit */
 	fseek(fileIn, 0, SEEK_SET);
 	fread(machineconfig, len, 1, fileIn);
 	fclose(fileIn);
+	machineconfig[len] = '\0';
 	mono_register_machine_config(machineconfig);
 
 	/* Main(string[] args) */
