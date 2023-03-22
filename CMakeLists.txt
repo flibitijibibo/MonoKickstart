@@ -18,6 +18,15 @@ if (APPLE)
         iconv
         "-Wl,-force_load,${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native-compat.a"
     )
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    SET(BIN_LIBROOT "libaarch64")
+    SET(CMAKE_EXECUTABLE_SUFFIX ".bin.aarch64")
+    SET(BIN_RPATH "\$ORIGIN/libaarch64")
+    SET(KICKLIBS
+        m rt dl libz.a
+        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmoo
+no-native.a -Wl,--no-whole-archive"
+    )
 elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(BIN_LIBROOT "lib64")
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86_64")
