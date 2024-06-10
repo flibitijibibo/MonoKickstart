@@ -24,8 +24,7 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     SET(BIN_RPATH "\$ORIGIN/libaarch64")
     SET(KICKLIBS
         m rt dl libz.a
-        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmoo
-no-native.a -Wl,--no-whole-archive"
+        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
 elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
     SET(BIN_LIBROOT "lib64")
