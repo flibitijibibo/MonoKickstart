@@ -49,15 +49,7 @@ jobs:
         run: |
             cd monokickstart
             cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
-            cmake -B build32 -D CMAKE_BUILD_TYPE=Release -D FORCE32=ON -G Ninja
             cmake --build build --parallel
-            cmake --build build32 --parallel
-
-      - name: Upload 32 bit Artifact
-        uses: actions/upload-artifact@v4
-        with:
-            name: libMonoPosixHelper
-            path: monokickstart/build32/kick.bin.x86
 
       - name: Upload 64 bit Artifact
         uses: actions/upload-artifact@v4
