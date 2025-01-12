@@ -24,7 +24,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
             name: libgdiplus
-            path: libgdiplus/src/.libs/libgdiplus.s*
+            path: libgdiplus/src/.libs/libgdiplus.so.0.0.0
 
       - name: Build mono
         run: |
