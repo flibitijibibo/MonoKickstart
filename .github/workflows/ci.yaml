@@ -2,10 +2,16 @@ name: MonoKickstart Ci
 on: [push]
 jobs:
   build:
+    
     name: Rocky Linux
     runs-on: ubuntu-20.04
     # TODO: Run on Rocky Linux, using buntu right now because I haven't checked the package names on RHEL yet
     steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            path: monokickstart
+
       - name: Build libgdiplus
         run: |
             sudo apt-get install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete
@@ -18,31 +24,45 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
             name: libgdiplus
-            path: libgdiplus/src/.libs/libgdiplus.so*
+            path: libgdiplus/src/.libs/libgdiplus.s*
 
       - name: Build mono
         run: |
             git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
             cd mono
-            ./autogen.sh
+            git apply -v ../monokickstart/patches/mono*
+            cd external/corefx
+            git apply -v ../../../monokickstart/patches/corefx*
+            cd ../corert
+            git apply -v ../../../monokickstart/patches/corert*
+            cd ../.. 
+            ./autogen.sh --with-ikvm-native=no
             make -j${nproc}
 
-      - name: Upload libgdiplus Artifact
+      - name: Upload libMonoPosixHelper Artifact
         uses: actions/upload-artifact@v4
         with:
             name: libMonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.so
 
-      - uses: actions/checkout@v4
-        with:
-            submodules: true
-            path: monokickstart
-
       - name: Build MonoKickstart
         run: |
             cd monokickstart
             cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
+            cmake -B build32 -D CMAKE_BUILD_TYPE=Release -D FORCE32=ON -G Ninja
             cmake --build build --parallel
-            ls build/
+            cmake --build build32 --parallel
+
+      - name: Upload 32 bit Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: libMonoPosixHelper
+            path: monokickstart/build32/kick.bin.x86
+
+      - name: Upload 64 bit Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: libMonoPosixHelper
+            path: monokickstart/build/kick.bin.x86_64
 
       
