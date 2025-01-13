@@ -46,12 +46,13 @@ jobs:
             cd libgdiplus
             ./autogen.sh
             make -j${nproc}
+            cp src/.libs/libgdiplus.so.0.0.0 ../libgdiplus.so.0
 
       - name: Upload libgdiplus Artifact
         uses: actions/upload-artifact@v4
         with:
             name: libgdiplus
-            path: libgdiplus/src/.libs/libgdiplus.so.0.*
+            path: libgdiplus.so.0
 
       - name: Build MonoKickstart
         run: |
