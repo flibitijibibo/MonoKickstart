@@ -6,7 +6,6 @@ jobs:
     name: Steam Runtime
     runs-on: ubuntu-20.04
     container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk:beta
-    # TODO: Run on Rocky Linux, using buntu right now because I haven't checked the package names on RHEL yet
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,8 +39,6 @@ jobs:
             cd ../.. 
             ./autogen.sh --with-ikvm-native=no
             make -j${nproc}
-            find . | grep -i Mono.Posix.dll
-
       - name: Upload libMonoPosixHelper Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -59,27 +56,31 @@ jobs:
             cd monokickstart
             cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
             cmake --build build --parallel
+            cd ..
+            mkdir artifact
+            cp monokickstart/build/kick.bin.x86_64 \
+            monokickstart/precompiled/monoconfig \
+            monokickstart/precompiled/monomachineconfig \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Core.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Data.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Drawing.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Xml.Linq.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Xml.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.dll \
+            mono/mcs/class/lib/net_4_x-linux/mscorlib.dll \
+            artifact
 
       - name: Upload kick.bin.x86_64 Artifact
         uses: actions/upload-artifact@v4
         with:
             name: kick.bin.x86_64
-            path: |
-              monokickstart/build/kick.bin.x86_64
-              monokickstart/precompiled/monoconfig
-              monokickstart/precompiled/monomachineconfig
-              mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll
-              mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Core.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Data.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Drawing.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Security.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Xml.Linq.dll
-              mono/mcs/class/lib/net_4_x-linux/System.Xml.dll
-              mono/mcs/class/lib/net_4_x-linux/System.dll
-              mono/mcs/class/lib/net_4_x-linux/mscorlib.dll
+            path: artifact/*
+              
 
       
