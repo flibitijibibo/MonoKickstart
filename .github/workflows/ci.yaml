@@ -3,8 +3,9 @@ on: [push]
 jobs:
   build:
     
-    name: Rocky Linux
+    name: Steam Runtime
     runs-on: ubuntu-20.04
+    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk:beta
     # TODO: Run on Rocky Linux, using buntu right now because I haven't checked the package names on RHEL yet
     steps:
       - uses: actions/checkout@v4
