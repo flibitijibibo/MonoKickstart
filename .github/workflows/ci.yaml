@@ -15,7 +15,8 @@ jobs:
 
       - name: Build libgdiplus
         run: |
-            sudo apt-get install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete
+            sudo apt update
+            sudo apt install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete -y
             git clone https://gitlab.winehq.org/mono/libgdiplus --depth=1 --recursive --shallow-submodules
             cd libgdiplus
             ./autogen.sh
