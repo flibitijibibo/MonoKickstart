@@ -1,0 +1,89 @@
+name: MonoKickstart Ci
+on: [push]
+jobs:
+  build:
+    
+    name: Steam Runtime
+    runs-on: ubuntu-20.04
+    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk:beta
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            path: monokickstart
+
+      - name: Install Depdencies
+        run: sudo apt update && sudo apt install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete -y
+
+      - name: Build mono
+        run: |
+            git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
+            cd mono
+            git apply -v ../monokickstart/patches/mono*
+            cd external/corefx
+            git apply -v ../../../monokickstart/patches/corefx*
+            cd ../corert
+            git apply -v ../../../monokickstart/patches/corert*
+            cd ../.. 
+            ./autogen.sh --with-ikvm-native=no
+            make -j${nproc}
+            
+      - name: Upload libMonoPosixHelper Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: libMonoPosixHelper
+            path: mono/support/.libs/libMonoPosixHelper.so
+
+      - name: Upload net_4_x-linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: net_4_x-linux
+            path: mono/mcs/class/lib/net_4_x-linux/
+
+      - name: Build libgdiplus
+        run: |
+            git clone https://gitlab.winehq.org/mono/libgdiplus --depth=1 --recursive --shallow-submodules
+            cd libgdiplus
+            ./autogen.sh
+            make -j${nproc}
+            cp src/.libs/libgdiplus.so.0.0.0 ../libgdiplus.so.0
+
+      - name: Upload libgdiplus Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: libgdiplus
+            path: libgdiplus.so.0
+
+      - name: Build MonoKickstart
+        run: |
+            cd monokickstart
+            cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
+            cmake --build build --parallel
+            cd ..
+            mkdir artifact
+            cp monokickstart/build/kick.bin.x86_64 \
+            monokickstart/precompiled/monoconfig \
+            monokickstart/precompiled/monomachineconfig \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Core.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Data.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Drawing.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Xml.Linq.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Xml.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.dll \
+            mono/mcs/class/lib/net_4_x-linux/mscorlib.dll \
+            artifact
+
+      - name: Upload kick.bin.x86_64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: kick.bin.x86_64
+            path: artifact/*
+              
+
+      
