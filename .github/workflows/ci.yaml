@@ -12,20 +12,8 @@ jobs:
             submodules: true
             path: monokickstart
 
-      - name: Build libgdiplus
-        run: |
-            sudo apt update
-            sudo apt install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete -y
-            git clone https://gitlab.winehq.org/mono/libgdiplus --depth=1 --recursive --shallow-submodules
-            cd libgdiplus
-            ./autogen.sh
-            make -j${nproc}
-
-      - name: Upload libgdiplus Artifact
-        uses: actions/upload-artifact@v4
-        with:
-            name: libgdiplus
-            path: libgdiplus/src/.libs/libgdiplus.so.0.0.0
+      - name: Install Depdencies
+        run: sudo apt update && sudo apt install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete -y
 
       - name: Build mono
         run: |
@@ -39,6 +27,7 @@ jobs:
             cd ../.. 
             ./autogen.sh --with-ikvm-native=no
             make -j${nproc}
+            
       - name: Upload libMonoPosixHelper Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -50,6 +39,19 @@ jobs:
         with:
             name: net_4_x-linux
             path: mono/mcs/class/lib/net_4_x-linux/
+
+      - name: Build libgdiplus
+        run: |
+            git clone https://gitlab.winehq.org/mono/libgdiplus --depth=1 --recursive --shallow-submodules
+            cd libgdiplus
+            ./autogen.sh
+            make -j${nproc}
+
+      - name: Upload libgdiplus Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: libgdiplus
+            path: libgdiplus/src/.libs/libgdiplus.so.0.*
 
       - name: Build MonoKickstart
         run: |
