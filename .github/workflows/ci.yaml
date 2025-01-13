@@ -48,16 +48,38 @@ jobs:
             name: libMonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.so
 
+      - name: Upload net_4_x-linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: net_4_x-linux
+            path: mono/mcs/class/lib/net_4_x-linux/
+
       - name: Build MonoKickstart
         run: |
             cd monokickstart
             cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
             cmake --build build --parallel
 
-      - name: Upload 64 bit Artifact
+      - name: Upload kick.bin.x86_64 Artifact
         uses: actions/upload-artifact@v4
         with:
             name: kick.bin.x86_64
-            path: monokickstart/build/kick.bin.x86_64
+            path: |
+              monokickstart/build/kick.bin.x86_64
+              monokickstart/precompiled/monoconfig
+              monokickstart/precompiled/monomachineconfig
+              mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll
+              mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Core.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Data.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Drawing.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Security.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Xml.Linq.dll
+              mono/mcs/class/lib/net_4_x-linux/System.Xml.dll
+              mono/mcs/class/lib/net_4_x-linux/System.dll
+              mono/mcs/class/lib/net_4_x-linux/mscorlib.dll
 
       
