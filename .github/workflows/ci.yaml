@@ -38,6 +38,7 @@ jobs:
             cd ../.. 
             ./autogen.sh --with-ikvm-native=no
             make -j${nproc}
+            find . | grep -i Mono.Posix.dll
 
       - name: Upload libMonoPosixHelper Artifact
         uses: actions/upload-artifact@v4
@@ -54,7 +55,7 @@ jobs:
       - name: Upload 64 bit Artifact
         uses: actions/upload-artifact@v4
         with:
-            name: libMonoPosixHelper
+            name: kick.bin.x86_64
             path: monokickstart/build/kick.bin.x86_64
 
       
