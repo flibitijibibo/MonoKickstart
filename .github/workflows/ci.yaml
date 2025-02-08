@@ -1,4 +1,4 @@
-name: MonoKickstart Ci
+name: CI
 on: [push]
 jobs:
   linux:
