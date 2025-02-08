@@ -3,7 +3,7 @@ PROJECT(kick C)
 
 OPTION(FORCE32 "Force a 32bit compile on 64bit" OFF)
 if (APPLE)
-    SET(CMAKE_OSX_DEPLOYMENT_TARGET 10.9)
+    SET(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
 elseif(FORCE32)
     SET(CMAKE_C_FLAGS "-m32")
     SET(CMAKE_CXX_FLAGS "-m32")
@@ -15,8 +15,8 @@ if (APPLE)
     SET(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework GSS")
     SET(BIN_RPATH "@executable_path/osx")
     SET(KICKLIBS
-        iconv
-        "-Wl,-force_load,${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native-compat.a"
+        iconv z
+        "-Wl,-force_load,${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a"
     )
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     SET(BIN_LIBROOT "libaarch64")

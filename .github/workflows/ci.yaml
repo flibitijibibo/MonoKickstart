@@ -1,19 +1,15 @@
 name: MonoKickstart Ci
 on: [push]
 jobs:
-  build:
-    
-    name: Steam Runtime
-    runs-on: ubuntu-20.04
+  linux:
+    name: Steam Linux Runtime
+    runs-on: ubuntu-latest
     container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk:beta
     steps:
       - uses: actions/checkout@v4
         with:
             submodules: true
             path: monokickstart
-
-      - name: Install Depdencies
-        run: sudo apt update && sudo apt install libgif-dev autoconf libtool automake build-essential gettext libglib2.0-dev libcairo2-dev libtiff-dev libexif-dev ninja-build mono-complete -y
 
       - name: Build mono
         run: |
@@ -24,46 +20,21 @@ jobs:
             git apply -v ../../../monokickstart/patches/corefx*
             cd ../corert
             git apply -v ../../../monokickstart/patches/corert*
-            cd ../.. 
+            cd ../..
             ./autogen.sh --with-ikvm-native=no
             make -j${nproc}
-            
-      - name: Upload libMonoPosixHelper Artifact
-        uses: actions/upload-artifact@v4
-        with:
-            name: libMonoPosixHelper
-            path: mono/support/.libs/libMonoPosixHelper.so
-
-      - name: Upload net_4_x-linux Artifact
-        uses: actions/upload-artifact@v4
-        with:
-            name: net_4_x-linux
-            path: mono/mcs/class/lib/net_4_x-linux/
-
-      - name: Build libgdiplus
-        run: |
-            git clone https://gitlab.winehq.org/mono/libgdiplus --depth=1 --recursive --shallow-submodules
-            cd libgdiplus
-            ./autogen.sh
-            make -j${nproc}
-            cp src/.libs/libgdiplus.so.0.0.0 ../libgdiplus.so.0
-
-      - name: Upload libgdiplus Artifact
-        uses: actions/upload-artifact@v4
-        with:
-            name: libgdiplus
-            path: libgdiplus.so.0
+            strip -S support/.libs/libMonoPosixHelper.so
 
       - name: Build MonoKickstart
         run: |
             cd monokickstart
             cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
             cmake --build build --parallel
+            strip -S build/kick.bin.x86_64
             cd ..
             mkdir artifact
             cp monokickstart/build/kick.bin.x86_64 \
-            monokickstart/precompiled/monoconfig \
-            monokickstart/precompiled/monomachineconfig \
+            monokickstart/monoconfig \
             mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll \
             mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll \
             mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll \
@@ -73,17 +44,158 @@ jobs:
             mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll \
             mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll \
             mono/mcs/class/lib/net_4_x-linux/System.Security.dll \
-            mono/mcs/class/lib/net_4_x-linux/System.Xml.Linq.dll \
             mono/mcs/class/lib/net_4_x-linux/System.Xml.dll \
             mono/mcs/class/lib/net_4_x-linux/System.dll \
             mono/mcs/class/lib/net_4_x-linux/mscorlib.dll \
             artifact
+            cp mono/runtime/etc/mono/4.5/machine.config artifact/monomachineconfig
 
-      - name: Upload kick.bin.x86_64 Artifact
+      - name: Upload kick.bin.x86_64
         uses: actions/upload-artifact@v4
         with:
-            name: kick.bin.x86_64
+            name: Linux-x86_64
             path: artifact/*
-              
 
-      
+      - name: Upload MonoPosixHelper
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-x86_64-MonoPosixHelper
+            path: mono/support/.libs/libMonoPosixHelper.so
+
+      - name: Upload BCL
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-BCL
+            path: mono/mcs/class/lib/net_4_x-linux/*.dll
+
+  macos-intel:
+    name: macOS (x86_64)
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            path: monokickstart
+
+      - name: Install dependencies
+        run: brew install autoconf automake cmake libtool ninja pkgconf
+
+      - name: Build mono
+        run: |
+            git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
+            cd mono
+            git apply -v ../monokickstart/patches/mono*
+            cd external/corefx
+            git apply -v ../../../monokickstart/patches/corefx*
+            cd ../corert
+            git apply -v ../../../monokickstart/patches/corert*
+            cd ../..
+            CFLAGS="-mmacosx-version-min=11.0" ./autogen.sh --with-ikvm-native=no
+            make -j${nproc}
+            strip -S support/.libs/libMonoPosixHelper.dylib
+
+      - name: Build MonoKickstart
+        run: |
+            cd monokickstart
+            cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
+            cmake --build build --parallel
+            strip -S build/kick.bin.osx
+            cd ..
+            mkdir artifact
+            cp monokickstart/build/kick.bin.osx \
+            monokickstart/monoconfig \
+            mono/mcs/class/lib/net_4_x-macos/Mono.Posix.dll \
+            mono/mcs/class/lib/net_4_x-macos/Mono.Security.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Configuration.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Core.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Data.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Drawing.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Numerics.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Runtime.Serialization.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Security.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Xml.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.dll \
+            mono/mcs/class/lib/net_4_x-macos/mscorlib.dll \
+            artifact
+            cp mono/runtime/etc/mono/4.5/machine.config artifact/monomachineconfig
+
+      - name: Upload kick.bin.osx
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-x86_64
+            path: artifact/*
+
+      - name: Upload MonoPosixHelper
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-x86_64-MonoPosixHelper
+            path: mono/support/.libs/libMonoPosixHelper.dylib
+
+      - name: Upload BCL
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-BCL
+            path: mono/mcs/class/lib/net_4_x-macos/*.dll
+
+  macos-arm64:
+    name: macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            path: monokickstart
+
+      - name: Install dependencies
+        run: brew install autoconf automake cmake libtool ninja pkgconf
+
+      - name: Build mono
+        run: |
+            git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
+            cd mono
+            git apply -v ../monokickstart/patches/mono*
+            cd external/corefx
+            git apply -v ../../../monokickstart/patches/corefx*
+            cd ../corert
+            git apply -v ../../../monokickstart/patches/corert*
+            cd ../..
+            CFLAGS="-mmacosx-version-min=11.0" ./autogen.sh --with-ikvm-native=no
+            make -j${nproc}
+            strip -S support/.libs/libMonoPosixHelper.dylib
+
+      - name: Build MonoKickstart
+        run: |
+            cd monokickstart
+            cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
+            cmake --build build --parallel
+            strip -S build/kick.bin.osx
+            cd ..
+            mkdir artifact
+            cp monokickstart/build/kick.bin.osx \
+            monokickstart/monoconfig \
+            mono/mcs/class/lib/net_4_x-macos/Mono.Posix.dll \
+            mono/mcs/class/lib/net_4_x-macos/Mono.Security.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Configuration.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Core.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Data.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Drawing.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Numerics.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Runtime.Serialization.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Security.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.Xml.dll \
+            mono/mcs/class/lib/net_4_x-macos/System.dll \
+            mono/mcs/class/lib/net_4_x-macos/mscorlib.dll \
+            artifact
+            cp mono/runtime/etc/mono/4.5/machine.config artifact/monomachineconfig
+
+      - name: Upload kick.bin.osx
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-arm64
+            path: artifact/*
+
+      - name: Upload MonoPosixHelper
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-arm64-MonoPosixHelper
+            path: mono/support/.libs/libMonoPosixHelper.dylib
