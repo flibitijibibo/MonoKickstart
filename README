@@ -41,3 +41,10 @@ behavior by simply setting MONO_FORCE_COMPAT to a non-null value:
 https://github.com/openbsd/ports/commit/7670058636c4985f47fa8da6dceaa9e7fec4f933
 
 Thanks to the OpenBSD community for the fix!
+
+About macOS Notarization
+------------------------
+Starting with macOS Catalina, apps distributed outside the Mac App Store must be
+notarized to pass Gatekeeper checks. Follow this guide to notarize your app:
+
+https://gist.github.com/nickgravelyn/45a08b4a9500b93dd0ac11f984e6b9f7
