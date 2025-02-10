@@ -18,30 +18,21 @@ if (APPLE)
         iconv z
         "-Wl,-force_load,${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a"
     )
-elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    SET(BIN_LIBROOT "libaarch64")
-    SET(CMAKE_EXECUTABLE_SUFFIX ".bin.aarch64")
-    SET(BIN_RPATH "\$ORIGIN/libaarch64")
-    SET(KICKLIBS
-        m rt dl libz.a
-        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
-    )
-elseif (CMAKE_SIZEOF_VOID_P MATCHES "8" AND NOT(FORCE32))
-    SET(BIN_LIBROOT "lib64")
-    SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86_64")
-    SET(BIN_RPATH "\$ORIGIN/lib64")
-    SET(KICKLIBS
-        m rt dl libz.a
-        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
-    )
 else()
-    SET(BIN_LIBROOT "lib")
-    SET(CMAKE_EXECUTABLE_SUFFIX ".bin.x86")
-    SET(BIN_RPATH "\$ORIGIN/lib")
+    SET(CMAKE_EXECUTABLE_SUFFIX ".bin.${CMAKE_SYSTEM_PROCESSOR}")
     SET(KICKLIBS
         m rt dl libz.a
         "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
+
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+        # Naming quirk for backward compatibility
+        SET(BIN_LIBROOT "lib64")
+        SET(BIN_RPATH "\$ORIGIN/lib64")
+    else()
+        SET(BIN_LIBROOT "lib${CMAKE_SYSTEM_PROCESSOR}")
+        SET(BIN_RPATH "\$ORIGIN/lib${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
 endif()
 
 ADD_DEFINITIONS(-DENABLE_BINRELOC)
