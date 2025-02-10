@@ -1,16 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 PROJECT(kick C)
 
-OPTION(FORCE32 "Force a 32bit compile on 64bit" OFF)
 if (APPLE)
     SET(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
-elseif(FORCE32)
-    SET(CMAKE_C_FLAGS "-m32")
-    SET(CMAKE_CXX_FLAGS "-m32")
-endif()
-
-if (APPLE)
-    SET(BIN_LIBROOT "osx")
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.osx")
     SET(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework GSS")
     SET(BIN_RPATH "@executable_path/osx")
@@ -27,10 +19,8 @@ else()
 
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
         # Naming quirk for backward compatibility
-        SET(BIN_LIBROOT "lib64")
         SET(BIN_RPATH "\$ORIGIN/lib64")
     else()
-        SET(BIN_LIBROOT "lib${CMAKE_SYSTEM_PROCESSOR}")
         SET(BIN_RPATH "\$ORIGIN/lib${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 endif()
@@ -43,13 +33,9 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH ${BIN_RPATH})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
-SET(SOURCE
+ADD_EXECUTABLE(kick
     kick.c
     binreloc.c
-)
-
-ADD_EXECUTABLE(kick
-    ${SOURCE}
 )
 
 TARGET_LINK_LIBRARIES(kick
