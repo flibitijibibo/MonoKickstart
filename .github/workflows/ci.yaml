@@ -68,6 +68,67 @@ jobs:
             name: Linux-BCL
             path: mono/mcs/class/lib/net_4_x-linux/*.dll
 
+  linux-aarch64:
+    name: Steam Linux Runtime (AArch64)
+    runs-on: ubuntu-24.04-arm
+    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk/arm64:3.0.20250408.124536
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            submodules: true
+            path: monokickstart
+
+      - name: Build mono
+        run: |
+            git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
+            cd mono
+            git apply -v ../monokickstart/patches/mono*
+            cd external/corefx
+            git apply -v ../../../monokickstart/patches/corefx*
+            cd ../corert
+            git apply -v ../../../monokickstart/patches/corert*
+            cd ../..
+            ./autogen.sh --with-ikvm-native=no
+            make -j${nproc}
+            strip -S support/.libs/libMonoPosixHelper.so
+
+      - name: Build MonoKickstart
+        run: |
+            cd monokickstart
+            cmake -B build -D CMAKE_BUILD_TYPE=Release -G Ninja
+            cmake --build build --parallel
+            strip -S build/kick.bin.aarch64
+            cd ..
+            mkdir artifact
+            cp monokickstart/build/kick.bin.aarch64 \
+            monokickstart/monoconfig \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Posix.dll \
+            mono/mcs/class/lib/net_4_x-linux/Mono.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Configuration.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Core.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Data.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Drawing.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Numerics.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Runtime.Serialization.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Security.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.Xml.dll \
+            mono/mcs/class/lib/net_4_x-linux/System.dll \
+            mono/mcs/class/lib/net_4_x-linux/mscorlib.dll \
+            artifact
+            cp mono/runtime/etc/mono/4.5/machine.config artifact/monomachineconfig
+
+      - name: Upload kick.bin.aarch64
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-aarch64
+            path: artifact/*
+
+      - name: Upload MonoPosixHelper
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-aarch64-MonoPosixHelper
+            path: mono/support/.libs/libMonoPosixHelper.so
+
   macos-intel:
     name: macOS (x86_64)
     runs-on: macos-13
