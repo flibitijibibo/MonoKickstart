@@ -260,3 +260,48 @@ jobs:
         with:
             name: macOS-arm64-MonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.dylib
+
+  macos-universal:
+    name: macOS (universal)
+    runs-on: macos-latest
+    needs: [macos-intel, macos-arm64]
+    steps:
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-x86_64
+           path: intel
+
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-arm64
+           path: arm
+
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-x86_64-MonoPosixHelper
+           path: intel_helper
+
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-arm64-MonoPosixHelper
+           path: arm_helper
+
+     - name: Lipo Libraries
+       run: |
+           find .
+           cp -r arm universal
+           rm universal/kick.bin.osx
+           lipo -create -output universal/kick.bin.osx intel/kick.bin.osx arm/kick.bin.osx
+           lipo -create -output libMonoPosixHelper.dylib intel_helper/libMonoPosixHelper.dylib arm_helper/libMonoPosixHelper.dylib
+
+     - name: Upload kick.bin.osx
+       uses: actions/upload-artifact@v4
+       with:
+           name: macOS-universal
+           path: universal/*
+
+     - name: Upload MonoPosixHelper
+       uses: actions/upload-artifact@v4
+       with:
+           name: macOS-universal-MonoPosixHelper
+           path: libMonoPosixHelper.dylib
