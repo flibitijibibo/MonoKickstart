@@ -71,7 +71,7 @@ jobs:
   linux-aarch64:
     name: Steam Linux Runtime (AArch64)
     runs-on: ubuntu-24.04-arm
-    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk/arm64:3.0.20250408.124536
+    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk/arm64:latest
     steps:
       - uses: actions/checkout@v4
         with:
