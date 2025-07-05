@@ -16,6 +16,7 @@ else()
         m rt dl libz.a
         "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
+    SET(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
         # Naming quirk for backward compatibility
