@@ -14,7 +14,7 @@ else()
     SET(CMAKE_EXECUTABLE_SUFFIX ".bin.${CMAKE_SYSTEM_PROCESSOR}")
     SET(KICKLIBS
         m rt dl libz.a
-        "-Wl,--whole-archive ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
+        "-Wl,--whole-archive,--export-dynamic ${CMAKE_SOURCE_DIR}/../mono/mono/native/.libs/libmono-native.a -Wl,--no-whole-archive"
     )
     SET(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
 
