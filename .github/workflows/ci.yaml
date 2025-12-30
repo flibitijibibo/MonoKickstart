@@ -136,7 +136,7 @@ jobs:
 
   macos-intel:
     name: macOS (x86_64)
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
         with:
@@ -311,3 +311,4 @@ jobs:
            name: macOS-universal-MonoPosixHelper
 
            path: libMonoPosixHelper.dylib
+
