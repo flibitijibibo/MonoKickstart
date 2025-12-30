@@ -1,5 +1,10 @@
 name: CI
-on: [push]
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 1 * *'
+
 jobs:
   linux:
     name: Steam Linux Runtime
@@ -304,4 +309,5 @@ jobs:
        uses: actions/upload-artifact@v4
        with:
            name: macOS-universal-MonoPosixHelper
+
            path: libMonoPosixHelper.dylib
