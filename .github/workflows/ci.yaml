@@ -19,9 +19,7 @@ jobs:
       - name: Build mono
         run: |
             git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
-            cd mono
-            git apply -v ../monokickstart/patches/mono*
-            cd external/corefx
+            cd mono/external/corefx
             git apply -v ../../../monokickstart/patches/corefx*
             cd ../corert
             git apply -v ../../../monokickstart/patches/corert*
@@ -86,9 +84,7 @@ jobs:
       - name: Build mono
         run: |
             git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
-            cd mono
-            git apply -v ../monokickstart/patches/mono*
-            cd external/corefx
+            cd mono/external/corefx
             git apply -v ../../../monokickstart/patches/corefx*
             cd ../corert
             git apply -v ../../../monokickstart/patches/corert*
@@ -149,9 +145,7 @@ jobs:
       - name: Build mono
         run: |
             git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
-            cd mono
-            git apply -v ../monokickstart/patches/mono*
-            cd external/corefx
+            cd mono/external/corefx
             git apply -v ../../../monokickstart/patches/corefx*
             cd ../corert
             git apply -v ../../../monokickstart/patches/corert*
@@ -218,9 +212,7 @@ jobs:
       - name: Build mono
         run: |
             git clone https://gitlab.winehq.org/mono/mono --depth=1 --recursive --shallow-submodules
-            cd mono
-            git apply -v ../monokickstart/patches/mono*
-            cd external/corefx
+            cd mono/external/corefx
             git apply -v ../../../monokickstart/patches/corefx*
             cd ../corert
             git apply -v ../../../monokickstart/patches/corert*
