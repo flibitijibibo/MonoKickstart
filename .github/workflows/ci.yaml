@@ -65,6 +65,12 @@ jobs:
             name: Linux-x86_64-MonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.so
 
+      - name: Upload MonoSupportW
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-x86_64-MonoSupportW
+            path: mono/support/.libs/libMonoSupportW.so
+
       - name: Upload BCL
         uses: actions/upload-artifact@v4
         with:
@@ -130,6 +136,12 @@ jobs:
             name: Linux-aarch64-MonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.so
 
+      - name: Upload MonoSupportW
+        uses: actions/upload-artifact@v4
+        with:
+            name: Linux-aarch64-MonoSupportW
+            path: mono/support/.libs/libMonoSupportW.so
+
   macos-intel:
     name: macOS (x86_64)
     runs-on: macos-15-intel
@@ -190,6 +202,12 @@ jobs:
         with:
             name: macOS-x86_64-MonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.dylib
+
+      - name: Upload MonoSupportW
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-x86_64-MonoSupportW
+            path: mono/support/.libs/libMonoSupportW.dylib
 
       - name: Upload BCL
         uses: actions/upload-artifact@v4
@@ -258,6 +276,12 @@ jobs:
             name: macOS-arm64-MonoPosixHelper
             path: mono/support/.libs/libMonoPosixHelper.dylib
 
+      - name: Upload MonoSupportW
+        uses: actions/upload-artifact@v4
+        with:
+            name: macOS-arm64-MonoSupportW
+            path: mono/support/.libs/libMonoSupportW.dylib
+
   macos-universal:
     name: macOS (universal)
     runs-on: macos-latest
@@ -283,6 +307,16 @@ jobs:
            name: macOS-arm64-MonoPosixHelper
            path: arm_helper
 
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-x86_64-MonoSupportW
+           path: intel_supportw
+
+     - uses: actions/download-artifact@v4
+       with:
+           name: macOS-arm64-MonoSupportW
+           path: arm_supportw
+
      - name: Lipo Libraries
        run: |
            find .
@@ -290,6 +324,7 @@ jobs:
            rm universal/kick.bin.osx
            lipo -create -output universal/kick.bin.osx intel/kick.bin.osx arm/kick.bin.osx
            lipo -create -output libMonoPosixHelper.dylib intel_helper/libMonoPosixHelper.dylib arm_helper/libMonoPosixHelper.dylib
+           lipo -create -output libMonoSupportW.dylib intel_supportw/libMonoSupportW.dylib arm_supportw/libMonoSupportW.dylib
 
      - name: Upload kick.bin.osx
        uses: actions/upload-artifact@v4
@@ -301,6 +336,11 @@ jobs:
        uses: actions/upload-artifact@v4
        with:
            name: macOS-universal-MonoPosixHelper
-
            path: libMonoPosixHelper.dylib
+
+     - name: Upload MonoSupportW
+       uses: actions/upload-artifact@v4
+       with:
+           name: macOS-universal-MonoSupportW
+           path: libMonoSupportW.dylib
 
